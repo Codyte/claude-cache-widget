@@ -1,0 +1,9 @@
+{
+  "_comment": "Preco USD por 1.000.000 de tokens. in=input novo, cr=cache-read, cw=cache-write, out=output. Chave = substring do nome do modelo (lowercase). Fonte unica: cache-widget.ps1 e usage_fetch.py leem este arquivo. Atualize aqui quando a Anthropic mudar a tabela.",
+  "models": {
+    "opus":   { "in": 15.0, "cr": 1.50, "cw": 18.75, "out": 75.0 },
+    "sonnet": { "in": 3.0,  "cr": 0.30, "cw": 3.75,  "out": 15.0 },
+    "haiku":  { "in": 1.0,  "cr": 0.10, "cw": 1.25,  "out": 5.0  }
+  },
+  "default": "opus"
+}

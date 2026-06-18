@@ -1,0 +1,17 @@
+# estado de runtime (gerado localmente, nunca commitar)
+.usage_cache.json
+.usage_cache.json.tmp
+.turn_state
+.cache_widget_pos.json
+
+# credenciais do Claude (NUNCA commitar)
+.credentials.json
+
+# backups do instalador
+settings.json.bak-*
+
+# lixo de SO / editor
+Thumbs.db
+desktop.ini
+*.swp
+.DS_Store
