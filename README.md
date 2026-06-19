@@ -36,7 +36,7 @@ active transcript / project folder). Single-instance (named mutex). Auto-closes 
 ## Install
 
 ```powershell
-git clone https://github.com/<you>/claude-cache-widget.git
+git clone https://github.com/Codyte/claude-cache-widget.git
 cd claude-cache-widget
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
@@ -63,7 +63,7 @@ edit `settings.json`; it prints the JSON block for you to paste (it still stops/
 If a user points you at this repo and says *"install this"*, run:
 
 ```powershell
-git clone <repo-url> claude-cache-widget
+git clone https://github.com/Codyte/claude-cache-widget.git claude-cache-widget
 powershell -ExecutionPolicy Bypass -File .\claude-cache-widget\install.ps1
 ```
 
