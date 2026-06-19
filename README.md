@@ -42,21 +42,33 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 The installer:
-1. copies the files to `~/.claude/cache-widget` (override with `-InstallDir <path>`),
-2. detects your Python interpreter,
-3. registers three hooks in `~/.claude/settings.json` (with a timestamped backup, idempotent):
+1. **stops any running instance** (releases the single-instance mutex),
+2. copies the files to `~/.claude/cache-widget` (override with `-InstallDir <path>`),
+3. detects your Python interpreter,
+4. registers three hooks in `~/.claude/settings.json` (with a timestamped backup, idempotent):
    - `SessionStart` → launches the widget hidden,
    - `UserPromptSubmit` → marks the turn **busy**,
-   - `Stop` → marks the turn **idle** (starts the cache cooldown clock).
+   - `Stop` → marks the turn **idle** (starts the cache cooldown clock),
+5. **launches the new instance** right away — so **re-running `install.ps1` = restart the widget**
+   with your latest code/config. No need to reboot the session.
+
+Flags: `-InstallDir <path>` · `-NoHooks` (copy + print snippet, don't touch `settings.json`) ·
+`-NoLaunch` (install without opening the widget).
 
 On **Windows PowerShell 5.1** (which lacks `ConvertFrom-Json -AsHashtable`) the installer does **not**
-edit `settings.json`; it prints the JSON block for you to paste. Use `-NoHooks` to force that behavior.
+edit `settings.json`; it prints the JSON block for you to paste (it still stops/launches the widget).
 
-Restart Claude Code, or launch it now:
+### For AI agents (one-shot install)
+
+If a user points you at this repo and says *"install this"*, run:
 
 ```powershell
-~\.claude\cache-widget\cache-widget.cmd
+git clone <repo-url> claude-cache-widget
+powershell -ExecutionPolicy Bypass -File .\claude-cache-widget\install.ps1
 ```
+
+`install.ps1` is idempotent and self-contained: it stops any old instance, installs, wires the hooks,
+and launches the widget immediately (no session restart needed). Use `-NoLaunch` to skip the launch.
 
 ## Configuration
 
