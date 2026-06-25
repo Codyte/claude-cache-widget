@@ -37,6 +37,8 @@ $HANDOFF_WARN   = if($cfg -and $cfg.handoff_warn_tokens){ [int]$cfg.handoff_warn
 $HANDOFF_FORCE  = if($cfg -and $cfg.handoff_force_tokens){ [int]$cfg.handoff_force_tokens } else { 140000 }
 
 Add-Type -Namespace WGdi -Name Rgn -MemberDefinition '[System.Runtime.InteropServices.DllImport("gdi32.dll")] public static extern System.IntPtr CreateRoundRectRgn(int l,int t,int r,int b,int w,int h);'
+# SetWindowPos: re-assere o topmost todo tick (TopMost=true sozinho perde p/ outras janelas topmost / apps fullscreen). NOACTIVATE = nao rouba foco.
+Add-Type -Namespace WUser -Name Z -MemberDefinition '[System.Runtime.InteropServices.DllImport("user32.dll")] public static extern bool SetWindowPos(System.IntPtr h,System.IntPtr after,int x,int y,int cx,int cy,uint flags);'
 
 $M = 14   # margem interna
 $form = New-Object System.Windows.Forms.Form
@@ -288,6 +290,8 @@ $timer.Add_Tick({
  if($script:busy){ return }   # tick anterior ainda rodando -> nao empilha (evita freeze)
  $script:busy=$true
  try{
+  # re-assere topmost (HWND_TOPMOST=-1; flags NOSIZE|NOMOVE|NOACTIVATE = 0x13) -> fica sempre na frente sem roubar foco
+  try{ [void][WUser.Z]::SetWindowPos($form.Handle,[System.IntPtr](-1),0,0,0,0,0x13) }catch{}
   # scan recursivo (acha o transcript mais novo) so a cada 5 ticks; nos demais, re-stat barato do atual
   if($script:scanTick -le 0 -or -not $script:curF){
     $script:curF = Get-ChildItem $projDir -Recurse -Filter *.jsonl -File -ErrorAction SilentlyContinue |

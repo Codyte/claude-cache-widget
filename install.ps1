@@ -1,7 +1,7 @@
 # NAV INDEX
 #   Instalador do Claude cache/cost widget.
 #   1) PARA qualquer instancia ja rodando (libera o mutex single-instance)
-#   2) copia os arquivos para -InstallDir (default ~/.claude/cache-widget)
+#   2) copia os arquivos para -InstallDir (default = o proprio repo -> sem copia, roda in-place)
 #   3) detecta o interpretador Python (py/python/python3)
 #   4) registra 3 hooks no ~/.claude/settings.json (SessionStart launcher, UserPromptSubmit=busy,
 #      Stop=idle) — com backup, idempotente. Em Windows PowerShell 5.1 (sem ConvertFrom-Json
@@ -9,7 +9,7 @@
 #   5) LANCA a nova instancia (a menos que -NoLaunch) -> re-rodar = reinicia o widget.
 #   Flags: -InstallDir <path>  -NoHooks (so copia/snippet)  -NoLaunch (nao abre o widget)
 [CmdletBinding()] param(
-  [string]$InstallDir = (Join-Path $env:USERPROFILE '.claude\cache-widget'),
+  [string]$InstallDir = $PSScriptRoot,   # default: roda no proprio repo (fonte unica). -InstallDir <path> p/ deploy separado.
   [switch]$NoHooks,
   [switch]$NoLaunch
 )
@@ -40,10 +40,15 @@ function Start-Widget($ps1){
 
 Stop-Widget
 
-# --- 2) copia ---
+# --- 2) copia (pulada quando InstallDir == repo: roda no proprio lugar) ---
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
-foreach($f in $files){ Copy-Item (Join-Path $src $f) (Join-Path $InstallDir $f) -Force }
-Write-Host "[ok] arquivos copiados -> $InstallDir" -ForegroundColor Green
+$inPlace = (Resolve-Path $InstallDir).Path -eq (Resolve-Path $src).Path
+if($inPlace){
+  Write-Host "[ok] rodando no proprio repo ($src) - sem copia" -ForegroundColor Green
+}else{
+  foreach($f in $files){ Copy-Item (Join-Path $src $f) (Join-Path $InstallDir $f) -Force }
+  Write-Host "[ok] arquivos copiados -> $InstallDir" -ForegroundColor Green
+}
 $ps1Path = Join-Path $InstallDir 'cache-widget.ps1'
 
 # --- 3) python ---
