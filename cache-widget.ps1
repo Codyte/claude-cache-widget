@@ -5,6 +5,7 @@
 #     enquanto Claude responde (busy) -> "respondendo", relogio NAO conta cache.
 #     idle: agora - T(fim). <4:30 verde quente | 4:30-5 amarelo | >5 vermelho frio. TTL cache=5min.
 #   Linha ctx: context window cheio (input ultimo turno / 200k) + modelo + conv id + barra.
+#     Badge HANDOFF (right-aligned): contexto ABSOLUTO >= handoff_warn/force_tokens (config) -> trocar sessao.
 #   ATUAL DA MENSAGEM: tokens in/cache/out do ultimo turno + barra empilhada por custo $.
 #   TOTAL DA CONVERSA: tokens e $ acumulados da conversa inteira + poupanca por cache + barra.
 #   PLANO/ORCAMENTO: utilization% 5h/7d (API OAuth) + custo estimado USD (transcripts reais).
@@ -32,6 +33,8 @@ $CTX_LIMIT      = if($cfg -and $cfg.context_limit){ [int]$cfg.context_limit } el
 $CTX_BY_MODEL   = if($cfg){ $cfg.context_limit_by_model } else { $null }
 $IDLE_CLOSE_MIN = if($cfg -and $cfg.idle_close_minutes){ [double]$cfg.idle_close_minutes } else { 30 }
 $CACHE_TTL      = if($cfg -and $cfg.cache_ttl_seconds){ [int]$cfg.cache_ttl_seconds } else { 300 }
+$HANDOFF_WARN   = if($cfg -and $cfg.handoff_warn_tokens){ [int]$cfg.handoff_warn_tokens } else { 120000 }
+$HANDOFF_FORCE  = if($cfg -and $cfg.handoff_force_tokens){ [int]$cfg.handoff_force_tokens } else { 140000 }
 
 Add-Type -Namespace WGdi -Name Rgn -MemberDefinition '[System.Runtime.InteropServices.DllImport("gdi32.dll")] public static extern System.IntPtr CreateRoundRectRgn(int l,int t,int r,int b,int w,int h);'
 
@@ -152,6 +155,8 @@ $lit = [System.Drawing.Color]::FromArgb(170,170,180)
 $hitCol=[System.Drawing.Color]::FromArgb(120,180,160)
 $lblHit  = New-Right 82  12 $fh $hitCol
 $lblBurn = New-Right 128 12 $fh $hitCol
+# badge de handoff na linha de contexto (right-aligned): warn (zona amarela) / force (vermelha)
+$lblHandoff = New-Right 38 16 $fh $hitCol
 
 # Session (5h)
 $lblS    = New-Lbl   212 16 $fs $lit; $lblS.Text='Session (5hr)'
@@ -329,6 +334,12 @@ $timer.Add_Tick({
   if($script:pct -lt 0.70){ $fill.BackColor=$green } elseif($script:pct -lt 0.90){ $fill.BackColor=$yellow } else { $fill.BackColor=$red }
   $fill.Width = [int]($track.Width * $script:pct)
 
+  # sinal de HANDOFF por contexto ABSOLUTO (nao % da janela): vide analise de break-even do reboot.
+  # warn = zona amarela (faca no proximo boundary de tarefa); force = vermelha (handoff ja).
+  if($script:lastPrompt -ge $HANDOFF_FORCE){ $lblHandoff.ForeColor=$red; $lblHandoff.Text=([char]0x21BB)+' handoff' }
+  elseif($script:lastPrompt -ge $HANDOFF_WARN){ $lblHandoff.ForeColor=$yellow; $lblHandoff.Text=([char]0x21BB)+' handoff?' }
+  else{ $lblHandoff.Text='' }
+
   # precos / taxas por milhao
   $p=Get-Price $script:model
   $lblRates.Text = 'Taxas/M: in: $' + $p.in + ' | cache: $' + $p.cr + ' | out: $' + $p.out
@@ -426,6 +437,10 @@ $timer.Add_Tick({
     elseif($sec -lt ($CACHE_TTL-30)){ "QUENTE - cache com ~90% desconto ATIVO; esfria em $ttlClk. Mandar prompt agora aproveita o cache barato" }
     elseif($sec -lt $CACHE_TTL){ "ESFRIANDO - faltam $ttlClk p/ expirar; resubmeta JA p/ nao perder o cache quente" }
     else{ "FRIO - cache expirou (idle $clk); o proximo prompt paga input cheio sem desconto" }
+  $handoffMsg =
+    if($script:lastPrompt -ge $HANDOFF_FORCE){ "HANDOFF AGORA - contexto $(Fmt $script:lastPrompt) >= $(Fmt $HANDOFF_FORCE); custo/turno e atencao degradam, perto da parede de $(Fmt $ctxLim). Handoff independente de tarefa." }
+    elseif($script:lastPrompt -ge $HANDOFF_WARN){ "ZONA AMARELA - contexto $(Fmt $script:lastPrompt) >= $(Fmt $HANDOFF_WARN); faca handoff no PROXIMO fim de tarefa (nao no meio). Sweet spot." }
+    else{ "OK - contexto $(Fmt $script:lastPrompt) < $(Fmt $HANDOFF_WARN); continuar e mais barato que rebootar (cache barato vence a re-leitura)." }
   $planSession = if($lblS.Text){ $lblS.Text + '  ' + $lblSr.Text } else { '(sem dados de plano ainda)' }
   $planWeekly  = if($lblW.Text){ $lblW.Text + '  ' + $lblWr.Text } else { '' }
 
@@ -440,6 +455,9 @@ Conversa     : $convId
 
 [ CONTEXT WINDOW ]  quanto do limite o proximo prompt ja ocupa.
   $(Fmt $script:lastPrompt) de $(Fmt $ctxLim) tokens = $('{0:0}%' -f ($script:pct*100)) cheio
+
+[ HANDOFF ]  quando trocar de sessao (gatilho em tokens ABSOLUTOS, nao % da janela).
+  $handoffMsg
 
 [ PRECOS ]  USD por 1.000.000 de tokens ($modelNameDisplay).
   input novo `$$($p.in)   cache-read `$$($p.cr)   cache-write `$$($p.cw)   output `$$($p.out)

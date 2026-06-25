@@ -1,6 +1,8 @@
 {
-  "_comment": "Ajustes do widget. context_limit_by_model: substring do modelo -> janela de contexto em tokens (vence sobre context_limit). idle_close_minutes: fecha o widget se a sessao ficar parada tanto tempo. cache_ttl_seconds: TTL do prompt-cache (Anthropic = 300s).",
+  "_comment": "Ajustes do widget. context_limit_by_model: substring do modelo -> janela de contexto em tokens (vence sobre context_limit). idle_close_minutes: fecha o widget se a sessao ficar parada tanto tempo. cache_ttl_seconds: TTL do prompt-cache (Anthropic = 300s). handoff_warn_tokens/handoff_force_tokens: contexto absoluto p/ sinalizar handoff (warn=zona amarela, faca no proximo boundary de tarefa; force=zona vermelha, handoff independente de tarefa). Tokens ABSOLUTOS, nao % da janela.",
   "context_limit": 200000,
+  "handoff_warn_tokens": 120000,
+  "handoff_force_tokens": 140000,
   "context_limit_by_model": {
     "opus": 200000,
     "sonnet": 200000,
