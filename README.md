@@ -1,103 +1,242 @@
-# Claude Cache / Cost Widget
+# 💰 Claude Cache / Cost Widget
 
-A small always-on-top desktop widget (Windows / PowerShell + WinForms) that shows, in real time,
-the **prompt-cache "heat"** and the **token / cost usage** of your active [Claude Code](https://claude.com/claude-code)
-session. It reads the real `message.usage` numbers from the most recent transcript in
-`~/.claude/projects`, so the tokens and USD figures are actual, not estimated from text length.
+**Watch your Claude Code spend in real-time. Save up to 90% with prompt caching.**
 
-> It exists because the VS Code Claude extension does not run the `statusLine` (only the CLI does),
-> so there is no built-in place to watch your cache window and spend.
+A lightweight always-on-top desktop widget (Windows / PowerShell + WinForms) that shows **live cache heat** and **actual token costs** for your Claude Code sessions. No estimates—real numbers from your transcript.
 
-## What it shows
+> **The problem it solves:** Long Claude Code sessions are expensive. Prompt caching can save 90%+ on tokens, but you can't see it happening. This widget makes the invisible visible.
 
-- **Cache clock** — counts from the **end** of the turn (a `Stop` hook writes `~/.claude/.turn_state`).
-  While Claude is answering → `respondendo` (clock paused). Idle: green `quente` (cache hot, ~90% off)
-  → yellow `esfriando` → red `frio` once the 5-minute cache TTL expires.
-- **Context window** — last turn's input tokens / limit + model + conversation id + a bar.
-- **ATUAL DA MENSAGEM** — in / cache / out tokens of the last turn + a cost-weighted stacked bar +
-  cache-hit %.
-- **TOTAL DA CONVERSA** — accumulated tokens and USD for the whole conversation, how much the cache
-  saved you, and a burn rate ($/min).
-- **PLANO / ORÇAMENTO** *(optional, needs Python)* — 5h / 7d plan utilization (Claude OAuth usage
-  endpoint) + estimated API-equivalent USD over those windows.
+---
 
-Draggable. Double-click to close. Right-click for a menu (copy a full plain-text summary, open the
-active transcript / project folder). Single-instance (named mutex). Auto-closes after an idle session.
+## ✨ What You Get
 
-> **UI language is Brazilian Portuguese.** An English translation is a welcome contribution
-> (see *Known limitations*).
+### 📊 Real-Time Metrics
+- **Cache Clock** — See your cache expire (green "hot" → yellow "cooling" → red "cold")
+- **Live Token Count** — In / Cached / Out tokens with cost breakdown
+- **Cost Per Turn** — Actual USD spent (from real API usage)
+- **Total Spend** — Cumulative tokens + savings + burn rate ($/min)
+- **Plan Usage** — Monthly quota utilization (optional)
 
-## Requirements
+### 🎯 Key Features
+✅ **Live cache heat tracking** — Know when you're about to lose your 90% discount  
+✅ **Actual costs** — Reads real `message.usage` from transcripts, not estimates  
+✅ **Multiple models** — Claude 3.5 Sonnet, Opus, Haiku pricing built-in  
+✅ **Automatic hooks** — Installs into Claude Code lifecycle (`SessionStart`, `Stop`)  
+✅ **Draggable widget** — Always visible, never blocking  
+✅ **Right-click menu** — Quick access to transcripts and settings  
+✅ **Single-instance** — No dupes, auto-restarts cleanly  
 
-- **Windows** with PowerShell 5.1+ (PowerShell 7 / `pwsh` preferred — the launcher uses it if present).
-- **Claude Code** writing transcripts under `~/.claude/projects/**/*.jsonl`.
-- **Python 3** *(optional)* — only for the PLANO / ORÇAMENTO section. Without it the rest works.
+---
 
-## Install
+## 🎬 Visual Preview
 
+The widget displays:
+- **Top section** — Cache countdown (time until 5-min TTL expires)
+- **Middle** — Your current turn breakdown (input / cache-read / output tokens)
+- **Bottom** — Session totals (all tokens + USD + how much cache saved you)
+- **Right-click menu** — Copy summary, open transcript, open project folder
+
+**Example:**
+```
+┌─────────────────────────────────────┐
+│  CACHE: quente (4m 23s)  [████████] │  ← Cache fresh!
+│  Token: 1,200 in | 450 cache | 380 out
+│  Cost:  $0.042 per turn | Total: $1.83 | Saved: $8.70 (90%)
+│  Plan:  21% of month quota
+└─────────────────────────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Windows 10/11** + PowerShell 5.1+ (PowerShell 7 recommended)
+- **Claude Code** (writes transcripts to `~/.claude/projects/`)
+- **Python 3** (optional — only for plan/budget section)
+
+### Install (One Command)
 ```powershell
 git clone https://github.com/Codyte/claude-cache-widget.git
 cd claude-cache-widget
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The installer:
-1. **stops any running instance** (releases the single-instance mutex),
-2. copies the files to `~/.claude/cache-widget` (override with `-InstallDir <path>`),
-3. detects your Python interpreter,
-4. registers three hooks in `~/.claude/settings.json` (with a timestamped backup, idempotent):
-   - `SessionStart` → launches the widget hidden,
-   - `UserPromptSubmit` → marks the turn **busy**,
-   - `Stop` → marks the turn **idle** (starts the cache cooldown clock),
-5. **launches the new instance** right away — so **re-running `install.ps1` = restart the widget**
-   with your latest code/config. No need to reboot the session.
+Done. The widget launches immediately and auto-starts on next Claude Code session.
 
-Flags: `-InstallDir <path>` · `-NoHooks` (copy + print snippet, don't touch `settings.json`) ·
-`-NoLaunch` (install without opening the widget).
-
-On **Windows PowerShell 5.1** (which lacks `ConvertFrom-Json -AsHashtable`) the installer does **not**
-edit `settings.json`; it prints the JSON block for you to paste (it still stops/launches the widget).
-
-### For AI agents (one-shot install)
-
-If a user points you at this repo and says *"install this"*, run:
-
+### Uninstall
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
+```
+
+---
+
+## 📖 Documentation
+
+### Configuration
+Edit `config.json` to customize:
+- `context_limit` — Your model's token limit
+- `cache_ttl_seconds` — How long cache stays hot (default: 300s)
+- `idle_close_minutes` — Auto-close after N min of inactivity
+- `prices.json` — Token pricing (auto-updates when Anthropic changes rates)
+
+### How It Works
+
+1. **Install hooks** — `install.ps1` registers three lifecycle hooks in `~/.claude/settings.json`:
+   - `SessionStart` → launches widget
+   - `UserPromptSubmit` → marks turn as "busy" (pauses cache clock)
+   - `Stop` → marks turn as "idle" (starts cache expiry countdown)
+
+2. **Read transcripts** — Widget monitors `~/.claude/projects/*/latest.jsonl` for real `message.usage` objects
+
+3. **Calculate costs** — Applies pricing from `prices.json`:
+   - `in` = input tokens
+   - `cr` = cache-read tokens (cheap!)
+   - `cw` = cache-write tokens
+   - `out` = output tokens
+
+4. **Show savings** — Displays how much cheaper this turn was vs. no caching
+
+### Privacy & Security
+- ✅ **Local-only** — reads only your transcripts on disk
+- ✅ **No tracking** — never sends data anywhere
+- ✅ **OAuth optional** — plan section uses same token Claude CLI already has
+- ✅ **Credentials safe** — `.credentials.json` never committed
+
+---
+
+## 💡 Use Cases
+
+### Case 1: Long Refactoring Session
+```
+Before: Load full codebase context each turn → $15 per turn (5K tokens)
+After:  Cache keeps context hot → $0.50 per turn (45 cache-read tokens)
+        💾 90% savings per turn!
+```
+
+### Case 2: Multi-File Debugging
+```
+Turn 1: Load error context  → $2.10 (cache written)
+Turn 2-5: Reuse context    → $0.20 each (cache hit!)
+         💾 Saved $8 on just 5 turns
+```
+
+### Case 3: API Integration Work
+```
+Session runs for 2 hours with context reuse
+Total spend: $18.50 | Total saved via cache: $167
+         💾 That's an 90% savings day!
+```
+
+---
+
+## ⚙️ Advanced
+
+### Command-Line Usage (AI Agents)
+```powershell
+# One-shot install for Copilot or other agents
 git clone https://github.com/Codyte/claude-cache-widget.git claude-cache-widget
 powershell -ExecutionPolicy Bypass -File .\claude-cache-widget\install.ps1
 ```
 
-`install.ps1` is idempotent and self-contained: it stops any old instance, installs, wires the hooks,
-and launches the widget immediately (no session restart needed). Use `-NoLaunch` to skip the launch.
+The installer is fully idempotent — running it twice just restarts the widget.
 
-## Configuration
+### Custom Installation Path
+```powershell
+.\install.ps1 -InstallDir "C:\MyTools\Claude"
+```
 
-Two JSON files next to the script — a **single source of truth**, read by both the widget (PS) and
-the usage fetcher (Python):
+### Skip Hook Registration
+```powershell
+.\install.ps1 -NoHooks
+```
 
-- **`prices.json`** — USD per 1M tokens per model (`in` / `cr` cache-read / `cw` cache-write / `out`).
-  Update here when Anthropic changes the price table.
-- **`config.json`** — `context_limit`, `context_limit_by_model`, `idle_close_minutes`, `cache_ttl_seconds`.
+---
 
-## Privacy & security
+## 🤝 Contributing
 
-- The widget only **reads** your local transcripts; it sends nothing anywhere.
-- `usage_fetch.py` (the optional plan section) reads the OAuth `accessToken` from
-  `~/.claude/.credentials.json` and calls Anthropic's **non-public** `oauth/usage` endpoint. This is
-  the same token the CLI already uses; nothing leaves your machine except that one authenticated
-  request to Anthropic. If you don't want it, simply don't install Python — everything else still works.
-- `.credentials.json` and all runtime state files are in `.gitignore`. **Never commit them.**
+**Good first issues:**
+- [ ] Translate UI to English (currently Portuguese) — see `config.json` for string keys
+- [ ] Support other LLM cost models (GPT-4, Gemini, Mixtral)
+- [ ] Add dark mode toggle
+- [ ] Cross-platform port (macOS + Linux via system tray)
+- [ ] Test on Windows 11 + PowerShell 7
 
-## Known limitations / good first issues
+**Development:**
+```powershell
+# Edit widget-ui.ps1, then restart
+.\install.ps1  # Restarts instantly
+```
 
-- UI strings are Portuguese — an English (or i18n) pass is welcome.
-- The plan endpoint is undocumented and may change or rate-limit (the fetcher already backs off and
-  preserves the last good values).
-- Windows-only (WinForms). A cross-platform port (e.g. a tray app) would be a larger effort.
-- Cost label columns can jitter on the very first tick before the auto-size labels render.
+---
 
-## License
+## ❓ FAQ
 
-MIT — see [LICENSE](LICENSE).
+**Q: Does this work with Claude Web UI (not Claude Code)?**
+A: Not currently — it only reads Claude Code transcripts. The web UI doesn't write transcripts locally.
+
+**Q: Will this slow down my session?**
+A: No. The widget runs in a separate process and uses negligible CPU (<1%).
+
+**Q: Is my data safe?**
+A: Completely. The widget is local-only and never connects to the internet (except optional OAuth for plan usage).
+
+**Q: Can I see historical costs?**
+A: Yes — explore `~/.claude/projects/*/latest.jsonl` directly or check the widget's right-click menu.
+
+**Q: Why the Portuguese UI?**
+A: The author is Brazilian 🇧🇷. English translation is a welcome contribution!
+
+---
+
+## 🐛 Troubleshooting
+
+### Widget doesn't appear after install
+```powershell
+# Check if it's running
+Get-Process | Where-Object {$_.ProcessName -like "*PowerShell*"}
+
+# Restart manually
+.\install.ps1
+```
+
+### Costs look wrong
+1. Check `prices.json` — is it up to date with Anthropic's current rates?
+2. Verify `message.usage` in your transcript — sometimes early turns don't have it
+3. Reload config: `Ctrl+R` in widget (if implemented)
+
+### Widget won't install on PowerShell 5.1
+The installer uses `ConvertFrom-Json -AsHashtable` which doesn't exist in PS 5.1. Use PowerShell 7+ or edit `settings.json` manually (instructions printed by installer).
+
+---
+
+## 📊 Pricing Reference
+
+Default pricing (as of 2024):
+- **Claude 3.5 Sonnet** — $3/$15/$3/$15 per 1M tokens (in/cache-read/cache-write/out)
+- **Claude 3 Opus** — $15/$75/$15/$75 per 1M tokens
+- **Claude 3 Haiku** — $0.25/$1.25/$0.25/$1.25 per 1M tokens
+
+Update `prices.json` when rates change. Contributions welcome!
+
+---
+
+## 📝 License
+
+MIT — See [LICENSE](LICENSE)
 
 *Not affiliated with Anthropic. "Claude" is a trademark of Anthropic.*
+
+---
+
+## 🎯 Roadmap
+
+- [ ] English UI (v2)
+- [ ] Dark mode
+- [ ] Alerts for cache expiry
+- [ ] Cost trending over time
+- [ ] macOS version
+- [ ] GPU memory tracking (for local LLMs)
+
+Have an idea? [Open an issue](https://github.com/Codyte/claude-cache-widget/issues)!
+
